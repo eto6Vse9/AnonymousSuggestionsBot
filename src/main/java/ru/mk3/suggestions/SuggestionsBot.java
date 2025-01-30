@@ -63,10 +63,9 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 continue;
             }
 
-            Long userId = user.getId();
             Long chatId = message.getChatId();
 
-            if (!isUserMemberOfChannel(userId)) {
+            if (!isUserMemberOfChannel(chatId)) {
                 sendTextMessage(chatId, MessageConfig.MUST_BE_MEMBER);
                 continue;
             }
