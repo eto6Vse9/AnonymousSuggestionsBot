@@ -171,7 +171,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         try {
             return execute(method);
         } catch (TelegramApiException e) {
-            log.error("Ошибка при выполнении метода Telegram API", e);
+            log.error("Error executing Telegram API method", e);
             return null;
         }
     }
@@ -180,7 +180,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         try {
             return execute(method);
         } catch (TelegramApiException e) {
-            log.error("Ошибка при выполнении метода Telegram API", e);
+            log.error("Error executing Telegram API method", e);
             return null;
         }
     }

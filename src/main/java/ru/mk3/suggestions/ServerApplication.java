@@ -14,7 +14,7 @@ public class ServerApplication {
             TelegramBotsApi botsApi = new TelegramBotsApi(DefaultBotSession.class);
             botsApi.registerBot(new SuggestionsBot(BotConfig.BOT_TOKEN, BotConfig.BOT_USERNAME));
 
-            log.info("Bot started");
+            log.info("Bot has started!");
         } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
