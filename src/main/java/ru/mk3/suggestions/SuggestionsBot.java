@@ -16,6 +16,7 @@ import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.media.InputMedia;
 import org.telegram.telegrambots.meta.api.objects.media.InputMediaPhoto;
+import org.telegram.telegrambots.meta.api.objects.media.InputMediaVideo;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import ru.mk3.suggestions.config.BotConfig;
 import ru.mk3.suggestions.config.MessageConfig;
@@ -84,14 +85,14 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     return;
                 }
 
-                InputMediaPhoto media;
+                InputMedia media;
                 if (message.hasPhoto()) {
                     List<PhotoSize> photos = message.getPhoto();
                     PhotoSize photo = photos.get(0);
                     media = new InputMediaPhoto(photo.getFileId());
                 } else if (message.hasVideo()) {
                     Video video = message.getVideo();
-                    media = new InputMediaPhoto(video.getFileId());
+                    media = new InputMediaVideo(video.getFileId());
                 } else {
                     forwardMessageToAdmins(message);
                     continue;
