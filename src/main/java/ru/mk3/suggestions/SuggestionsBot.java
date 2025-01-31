@@ -53,21 +53,24 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
         for (Update update : updates) {
             Message message = update.getMessage();
-
             if (message == null) {
                 continue;
             }
 
             User user = message.getFrom();
-
             if (user == null || user.getIsBot()) {
                 continue;
             }
 
             Long chatId = message.getChatId();
-
             if (!isUserMemberOfChannel(chatId)) {
                 sendTextMessage(chatId, MessageConfig.MUST_BE_MEMBER);
+                continue;
+            }
+
+            String text = message.getText();
+            if (text != null && text.equalsIgnoreCase("/start")) {
+                sendTextMessage(chatId, MessageConfig.START_MESSAGE);
                 continue;
             }
 
@@ -79,13 +82,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             List<Message> mediaMessages = new ArrayList<>();
 
             for (Message message : messages) {
-                String text = message.getText();
-
-                if (text != null && text.equalsIgnoreCase("/start")) {
-                    sendTextMessage(sender, MessageConfig.START_MESSAGE);
-                    return;
-                }
-
                 InputMedia media;
                 if (message.hasPhoto()) {
                     List<PhotoSize> photos = message.getPhoto();
@@ -95,7 +91,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     Video video = message.getVideo();
                     media = new InputMediaVideo(video.getFileId());
                 } else {
-                    forwardMessageToAdmins(message);
+                    mediaMessages.add(message);
                     continue;
                 }
 
