@@ -112,7 +112,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 sendMediaGroup.setMedias(mediaGroup);
 
                 for (String botAdminId : BotConfig.BOT_ADMINS) {
-                    System.out.println("send " + botAdminId);
                     sendMediaGroup.setChatId(botAdminId);
                     send(sendMediaGroup);
                 }
@@ -163,7 +162,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         copyMessage.setMessageId(message.getMessageId());
 
         for (String botAdminId : BotConfig.BOT_ADMINS) {
-            System.out.println("send " + botAdminId);
             copyMessage.setChatId(botAdminId);
             send(copyMessage);
         }
