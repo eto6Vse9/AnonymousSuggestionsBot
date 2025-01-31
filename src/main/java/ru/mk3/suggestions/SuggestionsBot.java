@@ -118,7 +118,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     send(sendMediaGroup);
                 }
             } else {
-                forwardMessageToAdmins(mediaMessages.get(0));
+                mediaMessages.forEach(this::forwardMessageToAdmins);
             }
 
             sendTextMessage(sender, MessageConfig.CONFIRMATION_MESSAGE);
