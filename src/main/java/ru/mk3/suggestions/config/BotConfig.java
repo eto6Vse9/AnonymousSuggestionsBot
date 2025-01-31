@@ -1,6 +1,5 @@
 package ru.mk3.suggestions.config;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Properties;
 
@@ -14,7 +13,7 @@ public class BotConfig {
         Properties prop = ConfigLoader.loadProperties("config.properties");
         BOT_TOKEN = prop.getProperty("token");
         BOT_USERNAME = prop.getProperty("username");
-        BOT_ADMINS = Arrays.asList(prop.getProperty("admins", "").split(","));
+        BOT_ADMINS = List.of(prop.getProperty("admins", "").split(","));
         TARGET_CHANNEL = prop.getProperty("target-channel");
     }
 
