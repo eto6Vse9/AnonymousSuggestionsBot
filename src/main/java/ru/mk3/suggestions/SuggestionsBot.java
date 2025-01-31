@@ -76,6 +76,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
         messagesMap.forEach((sender, messages) -> {
             List<InputMedia> mediaGroup = new ArrayList<>();
+            List<Message> mediaMessages = new ArrayList<>();
 
             for (Message message : messages) {
                 String text = message.getText();
@@ -105,9 +106,10 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 }
 
                 mediaGroup.add(media);
+                mediaMessages.add(message);
             }
 
-            if (!mediaGroup.isEmpty()) {
+            if (mediaGroup.size() > 1) {
                 SendMediaGroup sendMediaGroup = new SendMediaGroup();
                 sendMediaGroup.setMedias(mediaGroup);
 
@@ -115,6 +117,8 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     sendMediaGroup.setChatId(botAdminId);
                     send(sendMediaGroup);
                 }
+            } else {
+                forwardMessageToAdmins(mediaMessages.get(0));
             }
 
             sendTextMessage(sender, MessageConfig.CONFIRMATION_MESSAGE);
