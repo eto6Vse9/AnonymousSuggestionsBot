@@ -6,7 +6,6 @@ import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.CopyMessage;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -74,8 +73,12 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
         if (message != null) {
             String callback = callbackQuery.getData();
-            Long adminChatId = message.getChatId();
-            int messageId = message.getMessageId();
+            String adminChatId = message.getChatId().toString();
+            Integer messageId = message.getMessageId();
+
+            if (!BotConfig.BOT_ADMINS.contains(adminChatId)) {
+                return;
+            }
 
             if (callback.equals("publish")) {
                 CopyMessage copyMessage = new CopyMessage();
@@ -90,12 +93,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     deleteMessage.setMessageId(messageId);
 
                     send(deleteMessage);
-
-                    AnswerCallbackQuery answer = new AnswerCallbackQuery();
-                    answer.setCallbackQueryId(callbackQuery.getId());
-                    answer.setText("Опубликовано!");
-
-                    send(answer);
                 }
             } else if (callback.equals("delete")) {
                 DeleteMessage deleteMessage = new DeleteMessage();
