@@ -9,6 +9,7 @@ import java.util.List;
 public class Buttons {
 
     public static final InlineKeyboardMarkup POST_MARKUP;
+    public static final InlineKeyboardMarkup CHECK_SUBSCRIPTION_MARKUP;
 
     static {
         POST_MARKUP = createKeyboard(
@@ -19,6 +20,13 @@ public class Buttons {
                 InlineKeyboardButton.builder()
                         .text("\uD83D\uDDD1")
                         .callbackData("delete")
+                        .build()
+        );
+
+        CHECK_SUBSCRIPTION_MARKUP = createKeyboard(
+                InlineKeyboardButton.builder()
+                        .text("Проверить")
+                        .callbackData("check_subscription")
                         .build()
         );
     }

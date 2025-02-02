@@ -1,10 +1,9 @@
 package ru.mk3.suggestions.bot;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.CopyMessage;
@@ -15,25 +14,27 @@ import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-import ru.mk3.suggestions.config.BotConfig;
-import ru.mk3.suggestions.config.MessageConfig;
+import ru.mk3.suggestions.cache.CachedUser;
+import ru.mk3.suggestions.cache.UserCacheManager;
+import ru.mk3.suggestions.properties.BotConfig;
+import ru.mk3.suggestions.properties.MessageConfig;
 
 import java.io.Serializable;
+import java.time.LocalDateTime;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
 @Slf4j
 @Getter
 @RequiredArgsConstructor
 public class SuggestionsBot extends TelegramLongPollingBot {
 
-    private static final Cache<Long, Boolean> membershipCache = CacheBuilder.newBuilder()
-            .expireAfterWrite(1, TimeUnit.HOURS)
-            .build();
-
     private final String botToken;
     private final String botUsername;
+
+    @Autowired
+    private UserCacheManager userCacheManager;
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -53,8 +54,25 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         }
 
         Long chatId = message.getChatId();
-        if (!isUserMemberOfChannel(chatId)) {
-            sendTextMessage(chatId, MessageConfig.MUST_BE_MEMBER);
+        CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
+
+        if (cachedUser == null) {
+            cachedUser = userCacheManager.createCachedUser(chatId);
+            cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
+
+            userCacheManager.updateUser(cachedUser);
+        } else if (!userCacheManager.canSendMessage(cachedUser)) {
+            sendTextMessage(chatId, MessageConfig.MESSAGE_LIMIT_EXCEEDED);
+            return;
+        } else if (userCacheManager.shouldCheckSubscription(cachedUser)) {
+            cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
+            cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
+
+            userCacheManager.updateUser(cachedUser);
+        }
+
+        if (!cachedUser.isSubscribed()) {
+            sendTextMessage(chatId, MessageConfig.MUST_BE_MEMBER, Buttons.CHECK_SUBSCRIPTION_MARKUP);
             return;
         }
 
@@ -66,60 +84,73 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
         forwardMessageToAdmins(message);
         sendTextMessage(chatId, MessageConfig.CONFIRMATION_MESSAGE);
+
+        cachedUser.incrementMessageCount();
+        userCacheManager.updateUser(cachedUser);
     }
 
-    private void handleCallbackQuery(CallbackQuery callbackQuery) {
-        MaybeInaccessibleMessage message = callbackQuery.getMessage();
+    private void handleCallbackQuery(CallbackQuery callback) {
+        MaybeInaccessibleMessage message = callback.getMessage();
 
         if (message != null) {
-            String callback = callbackQuery.getData();
-            String adminChatId = message.getChatId().toString();
+            Long adminChatId = message.getChatId();
             Integer messageId = message.getMessageId();
+            String callbackData = callback.getData();
 
-            if (!BotConfig.BOT_ADMINS.contains(adminChatId)) {
+            if (callbackData.equals("check_subscription")) {
+                Long userId = callback.getFrom().getId();
+                CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(userId);
+
+                if (cachedUser == null) {
+                    cachedUser = userCacheManager.createCachedUser(userId);
+                } else if (!userCacheManager.canCheckSubscription(cachedUser)) {
+                    sendTextMessage(userId, MessageConfig.SUBSCRIPTION_CHECK_LIMIT_EXCEEDED);
+                    return;
+                }
+
+                boolean subscribed = isUserMemberOfChannel(userId);
+
+                cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
+                cachedUser.setSubscribed(subscribed);
+                cachedUser.incrementSubscriptionCheckCount();
+                userCacheManager.updateUser(cachedUser);
+
+                if (!subscribed) {
+                    return;
+                }
+            } else if (BotConfig.BOT_ADMINS.contains(adminChatId.toString())) {
+                if (callbackData.equals("publish")) {
+                    CopyMessage copyMessage = new CopyMessage();
+                    copyMessage.setFromChatId(adminChatId);
+                    copyMessage.setMessageId(messageId);
+                    copyMessage.setChatId(BotConfig.TARGET_CHANNEL);
+
+                    if (send(copyMessage) == null) {
+                        return;
+                    }
+                } else if (!callbackData.equals("delete")) {
+                    return;
+                }
+            } else {
                 return;
             }
 
-            if (callback.equals("publish")) {
-                CopyMessage copyMessage = new CopyMessage();
-                copyMessage.setFromChatId(adminChatId);
-                copyMessage.setMessageId(messageId);
-
-                copyMessage.setChatId(BotConfig.TARGET_CHANNEL);
-
-                if (send(copyMessage) != null) {
-                    DeleteMessage deleteMessage = new DeleteMessage();
-                    deleteMessage.setChatId(adminChatId);
-                    deleteMessage.setMessageId(messageId);
-
-                    send(deleteMessage);
-                }
-            } else if (callback.equals("delete")) {
-                DeleteMessage deleteMessage = new DeleteMessage();
-                deleteMessage.setChatId(adminChatId);
-                deleteMessage.setMessageId(messageId);
-                send(deleteMessage);
-            }
+            DeleteMessage deleteMessage = new DeleteMessage();
+            deleteMessage.setChatId(adminChatId);
+            deleteMessage.setMessageId(messageId);
+            send(deleteMessage);
         }
     }
 
     private boolean isUserMemberOfChannel(Long userId) {
-        Boolean cachedResult = membershipCache.getIfPresent(userId);
-        if (cachedResult != null) {
-            return cachedResult;
-        }
-
         GetChatMember getChatMember = new GetChatMember();
         getChatMember.setChatId(BotConfig.TARGET_CHANNEL);
         getChatMember.setUserId(userId);
 
         try {
             ChatMember chatMember = execute(getChatMember);
-            boolean isMember = chatMember != null && !chatMember.getStatus().equals("left") && !chatMember.getStatus().equals("kicked");
-
-            membershipCache.put(userId, isMember);
-
-            return isMember;
+            return chatMember != null &&
+                    !chatMember.getStatus().equals("left") && !chatMember.getStatus().equals("kicked");
         } catch (TelegramApiException e) {
             log.error("Error checking channel membership", e);
             return false;
@@ -127,10 +158,15 @@ public class SuggestionsBot extends TelegramLongPollingBot {
     }
 
     private void sendTextMessage(Long chatId, String text) {
+        sendTextMessage(chatId, text, null);
+    }
+
+    private void sendTextMessage(Long chatId, String text, InlineKeyboardMarkup markup) {
         SendMessage sendMessage = new SendMessage();
-        sendMessage.setChatId(chatId.toString());
+        sendMessage.setChatId(chatId);
         sendMessage.setText(text);
         sendMessage.setParseMode(ParseMode.MARKDOWN);
+        sendMessage.setReplyMarkup(markup);
         send(sendMessage);
     }
 

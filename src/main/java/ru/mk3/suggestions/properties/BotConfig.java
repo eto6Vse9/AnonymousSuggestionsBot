@@ -1,4 +1,4 @@
-package ru.mk3.suggestions.config;
+package ru.mk3.suggestions.properties;
 
 import java.util.List;
 import java.util.Properties;
