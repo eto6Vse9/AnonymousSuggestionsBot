@@ -1,0 +1,16 @@
+server:
+  port: 80
+  address: '0.0.0.0'
+
+spring:
+  jpa.hibernate.ddl-auto: update
+  datasource:
+    url: '${DB_URL}'
+    username: '${DB_USERNAME}'
+    password: '${DB_PASSWORD}'
+
+bot:
+  username: '${BOT_USERNAME}'
+  token: '${BOT_TOKEN}'
+  admins: '${BOT_ADMINS}'
+  target-channel: '${TARGET_CHANNEL}'

@@ -1,10 +1,14 @@
-package ru.mk3.suggestions.bot;
+package ru.mk3.suggestions;
 
+import jakarta.annotation.PostConstruct;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.TelegramBotsApi;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.CopyMessage;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -16,10 +20,11 @@ import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import ru.mk3.suggestions.cache.CachedUser;
 import ru.mk3.suggestions.cache.UserCacheManager;
-import ru.mk3.suggestions.properties.BotConfig;
 import ru.mk3.suggestions.properties.MessageConfig;
+import ru.mk3.suggestions.util.Buttons;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -28,13 +33,31 @@ import java.util.List;
 @Slf4j
 @Getter
 @RequiredArgsConstructor
+@Component
 public class SuggestionsBot extends TelegramLongPollingBot {
 
-    private final String botToken;
-    private final String botUsername;
+    @Value("${bot.token}")
+    private String botToken;
+
+    @Value("${bot.username}")
+    private String botUsername;
+
+    @Value("${bot.admins}")
+    private List<String> botAdmins;
+
+    @Value("${bot.target-channel}")
+    private String targetChannel;
+
+    @Autowired
+    private MessageConfig messageConfig;
 
     @Autowired
     private UserCacheManager userCacheManager;
+
+    @PostConstruct
+    public void init() throws TelegramApiException {
+        new TelegramBotsApi(DefaultBotSession.class).registerBot(this);
+    }
 
     @Override
     public void onUpdateReceived(Update update) {
@@ -62,7 +85,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
             userCacheManager.updateUser(cachedUser);
         } else if (!userCacheManager.canSendMessage(cachedUser)) {
-            sendTextMessage(chatId, MessageConfig.MESSAGE_LIMIT_EXCEEDED);
+            sendTextMessage(chatId, messageConfig.getLimitExceededMessage());
             return;
         } else if (userCacheManager.shouldCheckSubscription(cachedUser)) {
             cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
@@ -72,18 +95,18 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         }
 
         if (!cachedUser.isSubscribed()) {
-            sendTextMessage(chatId, MessageConfig.MUST_BE_MEMBER, Buttons.CHECK_SUBSCRIPTION_MARKUP);
+            sendTextMessage(chatId, messageConfig.getMustBeMemberMessage(), Buttons.CHECK_SUBSCRIPTION_MARKUP);
             return;
         }
 
         String text = message.getText();
         if (text != null && text.equalsIgnoreCase("/start")) {
-            sendTextMessage(chatId, MessageConfig.START_MESSAGE);
+            sendTextMessage(chatId, messageConfig.getStartMessage());
             return;
         }
 
         forwardMessageToAdmins(message);
-        sendTextMessage(chatId, MessageConfig.CONFIRMATION_MESSAGE);
+        sendTextMessage(chatId, messageConfig.getConfirmationMessage());
 
         cachedUser.incrementMessageCount();
         userCacheManager.updateUser(cachedUser);
@@ -104,7 +127,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 if (cachedUser == null) {
                     cachedUser = userCacheManager.createCachedUser(userId);
                 } else if (!userCacheManager.canCheckSubscription(cachedUser)) {
-                    sendTextMessage(userId, MessageConfig.SUBSCRIPTION_CHECK_LIMIT_EXCEEDED);
+                    sendTextMessage(userId, messageConfig.getSubscriptionCheckLimitExceededMessage());
                     return;
                 }
 
@@ -118,12 +141,12 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 if (!subscribed) {
                     return;
                 }
-            } else if (BotConfig.BOT_ADMINS.contains(adminChatId.toString())) {
+            } else if (botAdmins.contains(adminChatId.toString())) {
                 if (callbackData.equals("publish")) {
                     CopyMessage copyMessage = new CopyMessage();
                     copyMessage.setFromChatId(adminChatId);
                     copyMessage.setMessageId(messageId);
-                    copyMessage.setChatId(BotConfig.TARGET_CHANNEL);
+                    copyMessage.setChatId(targetChannel);
 
                     if (send(copyMessage) == null) {
                         return;
@@ -144,7 +167,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
     private boolean isUserMemberOfChannel(Long userId) {
         GetChatMember getChatMember = new GetChatMember();
-        getChatMember.setChatId(BotConfig.TARGET_CHANNEL);
+        getChatMember.setChatId(targetChannel);
         getChatMember.setUserId(userId);
 
         try {
@@ -177,7 +200,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         copyMessage.setMessageId(message.getMessageId());
         copyMessage.setReplyMarkup(Buttons.POST_MARKUP);
 
-        for (String botAdminId : BotConfig.BOT_ADMINS) {
+        for (String botAdminId : botAdmins) {
             copyMessage.setChatId(botAdminId);
             send(copyMessage);
         }

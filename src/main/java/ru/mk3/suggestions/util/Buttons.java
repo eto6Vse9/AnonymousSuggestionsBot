@@ -1,4 +1,4 @@
-package ru.mk3.suggestions.bot;
+package ru.mk3.suggestions.util;
 
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
@@ -29,6 +29,10 @@ public class Buttons {
                         .callbackData("check_subscription")
                         .build()
         );
+    }
+
+    private Buttons() {
+        throw new IllegalStateException("Utility class");
     }
 
     private static InlineKeyboardMarkup createKeyboard(InlineKeyboardButton... buttons) {

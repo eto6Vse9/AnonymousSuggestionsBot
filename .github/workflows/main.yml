@@ -25,12 +25,18 @@ jobs:
           BOT_USERNAME: ${{ secrets.BOT_USERNAME }}
           BOT_ADMINS: ${{ secrets.BOT_ADMINS }}
           TARGET_CHANNEL: ${{ secrets.TARGET_CHANNEL }}
+          DB_URL: ${{ secrets.DB_URL }}
+          DB_USERNAME: ${{ secrets.DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.DB_PASSWORD }}
         run: |
           mvn clean package \
             -DBOT_TOKEN=$BOT_TOKEN \
             -DBOT_USERNAME=$BOT_USERNAME \
             -DBOT_ADMINS=$BOT_ADMINS \
-            -DTARGET_CHANNEL=$TARGET_CHANNEL
+            -DTARGET_CHANNEL=$TARGET_CHANNEL \
+            -DDB_URL=$DB_URL \
+            -DDB_USERNAME=$DB_USERNAME \
+            -DDB_PASSWORD=$DB_PASSWORD
 
       - name: Upload to Github Releases (Draft)
         uses: softprops/action-gh-release@v1
