@@ -87,6 +87,10 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         Long chatId = message.getChatId();
         CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
 
+        if (userCacheManager.canCheckSubscription(cachedUser)) {
+            checkIsMemberOfChannel(cachedUser);
+        }
+
         if (!cachedUser.isSubscribed()) {
             sendTextMessage(chatId, messageConfig.getMustBeMemberMessage(), Buttons.CHECK_SUBSCRIPTION_MARKUP);
             return;
@@ -116,6 +120,8 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
         if (message != null) {
             String callbackData = callback.getData();
+            String callbackId = callback.getId();
+
             Long chatId = message.getChatId();
             Integer messageId = message.getMessageId();
 
@@ -124,24 +130,12 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
                 if (!cachedUser.isSubscribed()) {
                     if (!userCacheManager.canCheckSubscription(cachedUser)) {
-                        sendTextMessage(chatId, messageConfig.getSubscriptionCheckLimitExceededMessage());
+                        sendAnswerCallback(callbackId, messageConfig.getSubscriptionCheckLimitExceededMessage());
                         return;
                     }
 
-                    boolean subscribed = isUserMemberOfChannel(chatId);
-
-                    cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
-                    cachedUser.setSubscribed(subscribed);
-                    cachedUser.incrementSubscriptionCheckCount();
-                    userCacheManager.updateUser(cachedUser);
-
-                    if (!subscribed) {
-                        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-                        answer.setCallbackQueryId(callback.getId());
-                        answer.setText(messageConfig.getStillNotSubscribedMessage());
-                        answer.setShowAlert(true);
-                        send(answer);
-
+                    if (!checkIsMemberOfChannel(cachedUser)) {
+                        sendAnswerCallback(callbackId, messageConfig.getStillNotSubscribedMessage());
                         return;
                     }
 
@@ -197,19 +191,34 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         }
     }
 
-    private boolean isUserMemberOfChannel(Long userId) {
+    private boolean checkIsMemberOfChannel(CachedUser cachedUser) {
         GetChatMember getChatMember = new GetChatMember();
         getChatMember.setChatId(targetChannel);
-        getChatMember.setUserId(userId);
+        getChatMember.setUserId(cachedUser.getTelegramId());
 
+        boolean subscribed = false;
         try {
             ChatMember chatMember = execute(getChatMember);
-            return chatMember != null &&
+            subscribed = chatMember != null &&
                     !chatMember.getStatus().equals("left") && !chatMember.getStatus().equals("kicked");
         } catch (TelegramApiException e) {
             log.error("Error checking channel membership", e);
-            return false;
         }
+
+        cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
+        cachedUser.setSubscribed(subscribed);
+        cachedUser.incrementSubscriptionCheckCount();
+        userCacheManager.updateUser(cachedUser);
+
+        return subscribed;
+    }
+
+    private void sendAnswerCallback(String callbackQueryId, String text) {
+        AnswerCallbackQuery answer = new AnswerCallbackQuery();
+        answer.setCallbackQueryId(callbackQueryId);
+        answer.setText(text);
+        answer.setShowAlert(true);
+        send(answer);
     }
 
     private void sendTextMessage(Long chatId, String text) {
