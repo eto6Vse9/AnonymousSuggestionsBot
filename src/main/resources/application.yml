@@ -5,12 +5,12 @@ server:
 spring:
   jpa.hibernate.ddl-auto: update
   datasource:
-    url: '${DB_URL}'
-    username: '${DB_USERNAME}'
-    password: '${DB_PASSWORD}'
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
 bot:
-  username: '${BOT_USERNAME}'
-  token: '${BOT_TOKEN}'
-  admins: '${BOT_ADMINS}'
-  target-channel: '${TARGET_CHANNEL}'
+  username: ${BOT_USERNAME}
+  token: ${BOT_TOKEN}
+  admins: ${BOT_ADMINS}
+  target-channel: ${TARGET_CHANNEL}
