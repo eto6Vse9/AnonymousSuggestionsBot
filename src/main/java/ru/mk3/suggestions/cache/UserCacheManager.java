@@ -31,25 +31,30 @@ public class UserCacheManager {
 
     public boolean canSendMessage(CachedUser user) {
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastMessageTime = user.getLastMessageTime();
 
-        if (ChronoUnit.HOURS.between(user.getLastMessageTime(), now) >= 1) {
+        if (lastMessageTime == null || ChronoUnit.HOURS.between(lastMessageTime, now) >= 1) {
             user.setMessageCount(0);
+            user.setLastMessageTime(now);
             return true;
         }
 
-        return user.getMessageCount() <= MAX_MESSAGES_PER_HOUR;
+        return user.getMessageCount() < MAX_MESSAGES_PER_HOUR;
     }
 
     public boolean shouldCheckSubscription(CachedUser user) {
-        return ChronoUnit.MINUTES.between(user.getLastSubscriptionCheck(), LocalDateTime.now())
-                >= SUBSCRIPTION_CHECK_TIMEOUT_MINUTES;
+        LocalDateTime lastCheck = user.getLastSubscriptionCheck();
+        return lastCheck == null ||
+                ChronoUnit.MINUTES.between(lastCheck, LocalDateTime.now()) >= SUBSCRIPTION_CHECK_TIMEOUT_MINUTES;
     }
 
     public boolean canCheckSubscription(CachedUser user) {
         LocalDateTime now = LocalDateTime.now();
+        LocalDateTime lastCheck = user.getLastSubscriptionCheck();
 
-        if (ChronoUnit.DAYS.between(user.getLastSubscriptionCheck(), now) >= 1) {
+        if (lastCheck == null || ChronoUnit.DAYS.between(lastCheck, now) >= 1) {
             user.setSubscriptionCheckCount(0);
+            user.setLastSubscriptionCheck(now);
             return true;
         }
 

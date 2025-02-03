@@ -1,4 +1,4 @@
-package ru.mk3.suggestions.config;
+package ru.mk3.suggestions.cache;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import org.springframework.cache.annotation.EnableCaching;
