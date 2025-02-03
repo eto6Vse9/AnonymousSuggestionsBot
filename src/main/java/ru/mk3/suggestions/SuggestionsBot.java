@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.CopyMessage;
 import org.telegram.telegrambots.meta.api.methods.ParseMode;
@@ -28,6 +29,7 @@ import ru.mk3.suggestions.util.Buttons;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.List;
 
 @Slf4j
@@ -79,15 +81,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         Long chatId = message.getChatId();
         CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
 
-        if (cachedUser == null) {
-            cachedUser = userCacheManager.createCachedUser(chatId);
-            cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
-
-            userCacheManager.updateUser(cachedUser);
-        } else if (!userCacheManager.canSendMessage(cachedUser)) {
-            sendTextMessage(chatId, messageConfig.getLimitExceededMessage());
-            return;
-        } else if (userCacheManager.shouldCheckSubscription(cachedUser)) {
+        if (userCacheManager.shouldCheckSubscription(cachedUser)) {
             cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
             cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
 
@@ -105,10 +99,16 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             return;
         }
 
+        if (!userCacheManager.canSendMessage(cachedUser)) {
+            sendTextMessage(chatId, messageConfig.getLimitExceededMessage());
+            return;
+        }
+
         forwardMessageToAdmins(message);
         sendTextMessage(chatId, messageConfig.getConfirmationMessage());
 
         cachedUser.incrementMessageCount();
+        cachedUser.setLastMessageTime(LocalDateTime.now());
         userCacheManager.updateUser(cachedUser);
     }
 
@@ -116,22 +116,21 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         MaybeInaccessibleMessage message = callback.getMessage();
 
         if (message != null) {
-            Long adminChatId = message.getChatId();
-            Integer messageId = message.getMessageId();
+            String callbackId = callback.getId();
             String callbackData = callback.getData();
 
-            if (callbackData.equals("check_subscription")) {
-                Long userId = callback.getFrom().getId();
-                CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(userId);
+            Long chatId = message.getChatId();
+            Integer messageId = message.getMessageId();
 
-                if (cachedUser == null) {
-                    cachedUser = userCacheManager.createCachedUser(userId);
-                } else if (!userCacheManager.canCheckSubscription(cachedUser)) {
-                    sendTextMessage(userId, messageConfig.getSubscriptionCheckLimitExceededMessage());
+            if (callbackData.equals("check_subscription")) {
+                CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
+
+                if (!userCacheManager.canCheckSubscription(cachedUser)) {
+                    sendTextMessage(chatId, messageConfig.getSubscriptionCheckLimitExceededMessage());
                     return;
                 }
 
-                boolean subscribed = isUserMemberOfChannel(userId);
+                boolean subscribed = isUserMemberOfChannel(chatId);
 
                 cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
                 cachedUser.setSubscribed(subscribed);
@@ -139,12 +138,15 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 userCacheManager.updateUser(cachedUser);
 
                 if (!subscribed) {
+                    sendAnswerCallback(callbackId, messageConfig.getStillNotSubscribedMessage(), true);
                     return;
                 }
-            } else if (botAdmins.contains(adminChatId.toString())) {
+
+                sendTextMessage(chatId, messageConfig.getStartMessage());
+            } else if (botAdmins.contains(chatId.toString())) {
                 if (callbackData.equals("publish")) {
                     CopyMessage copyMessage = new CopyMessage();
-                    copyMessage.setFromChatId(adminChatId);
+                    copyMessage.setFromChatId(chatId);
                     copyMessage.setMessageId(messageId);
                     copyMessage.setChatId(targetChannel);
 
@@ -159,7 +161,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             }
 
             DeleteMessage deleteMessage = new DeleteMessage();
-            deleteMessage.setChatId(adminChatId);
+            deleteMessage.setChatId(chatId);
             deleteMessage.setMessageId(messageId);
             send(deleteMessage);
         }
@@ -178,6 +180,14 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             log.error("Error checking channel membership", e);
             return false;
         }
+    }
+
+    private void sendAnswerCallback(String callbackQueryId, String text, boolean showAlert) {
+        AnswerCallbackQuery answer = new AnswerCallbackQuery();
+        answer.setCallbackQueryId(callbackQueryId);
+        answer.setText(text);
+        answer.setShowAlert(showAlert);
+        send(answer);
     }
 
     private void sendTextMessage(Long chatId, String text) {
@@ -220,7 +230,8 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             return execute(method);
         } catch (TelegramApiException e) {
             log.error("Error executing Telegram API method", e);
-            return null;
+            return Collections.emptyList();
         }
     }
+
 }

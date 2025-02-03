@@ -16,11 +16,6 @@ public class UserCacheManager {
 
     @Cacheable(value = "users", key = "#telegramId")
     public CachedUser getCachedUserByTelegramId(Long telegramId) {
-        return null;
-    }
-
-    @CachePut(value = "users", key = "#telegramId")
-    public CachedUser createCachedUser(Long telegramId) {
         return new CachedUser(telegramId);
     }
 
@@ -30,12 +25,16 @@ public class UserCacheManager {
     }
 
     public boolean canSendMessage(CachedUser user) {
-        LocalDateTime now = LocalDateTime.now();
         LocalDateTime lastMessageTime = user.getLastMessageTime();
 
-        if (lastMessageTime == null || ChronoUnit.HOURS.between(lastMessageTime, now) >= 1) {
+        if (lastMessageTime == null) {
+            return true;
+        }
+
+        if (ChronoUnit.HOURS.between(lastMessageTime, LocalDateTime.now()) >= 1) {
             user.setMessageCount(0);
-            user.setLastMessageTime(now);
+            updateUser(user);
+
             return true;
         }
 
@@ -49,12 +48,16 @@ public class UserCacheManager {
     }
 
     public boolean canCheckSubscription(CachedUser user) {
-        LocalDateTime now = LocalDateTime.now();
         LocalDateTime lastCheck = user.getLastSubscriptionCheck();
 
-        if (lastCheck == null || ChronoUnit.DAYS.between(lastCheck, now) >= 1) {
+        if (lastCheck == null) {
+            return true;
+        }
+
+        if (ChronoUnit.DAYS.between(lastCheck, LocalDateTime.now()) >= 1) {
             user.setSubscriptionCheckCount(0);
-            user.setLastSubscriptionCheck(now);
+            updateUser(user);
+
             return true;
         }
 

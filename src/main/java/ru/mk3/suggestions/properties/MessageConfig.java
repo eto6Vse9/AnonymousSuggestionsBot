@@ -25,4 +25,7 @@ public class MessageConfig {
     @Value("${subscription-check-limit-exceeded}")
     private String subscriptionCheckLimitExceededMessage;
 
+    @Value("${still-not-subscribed}")
+    private String stillNotSubscribedMessage;
+
 }
