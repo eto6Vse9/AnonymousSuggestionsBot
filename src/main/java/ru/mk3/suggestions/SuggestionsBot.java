@@ -87,7 +87,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         Long chatId = message.getChatId();
         CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
 
-        if (userCacheManager.canCheckSubscription(cachedUser)) {
+        if (cachedUser.getSubscriptionCheckCount() == 0) {
             checkIsMemberOfChannel(cachedUser);
         }
 

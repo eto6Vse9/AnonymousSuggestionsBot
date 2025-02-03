@@ -11,7 +11,7 @@ import java.time.temporal.ChronoUnit;
 public class UserCacheManager {
 
     private static final int MAX_MESSAGES_PER_HOUR = 5;
-    private static final int MAX_SUBSCRIPTION_CHECKS_PER_DAY = 3;
+    private static final int MAX_SUBSCRIPTION_CHECKS_PER_DAY = 4;
 
     @Cacheable(value = "users", key = "#telegramId")
     public CachedUser getCachedUserByTelegramId(Long telegramId) {
