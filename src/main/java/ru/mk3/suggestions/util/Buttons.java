@@ -22,7 +22,6 @@ public class Buttons {
         ANOTHER_ADMIN_ACTION_MARKUP = createKeyboard(
                 InlineKeyboardButton.builder()
                         .text("Недоступно")
-                        .callbackData("check_subscription")
                         .build(),
                 InlineKeyboardButton.builder()
                         .text("\uD83D\uDDD1")
