@@ -8,31 +8,44 @@ import java.util.List;
 
 public class Buttons {
 
-    public static final InlineKeyboardMarkup POST_MARKUP;
     public static final InlineKeyboardMarkup CHECK_SUBSCRIPTION_MARKUP;
+    public static final InlineKeyboardMarkup ANOTHER_ADMIN_ACTION_MARKUP;
 
     static {
-        POST_MARKUP = createKeyboard(
-                InlineKeyboardButton.builder()
-                        .text("✔️")
-                        .callbackData("publish")
-                        .build(),
-                InlineKeyboardButton.builder()
-                        .text("\uD83D\uDDD1")
-                        .callbackData("delete")
-                        .build()
-        );
-
         CHECK_SUBSCRIPTION_MARKUP = createKeyboard(
                 InlineKeyboardButton.builder()
                         .text("Проверить")
                         .callbackData("check_subscription")
                         .build()
         );
+
+        ANOTHER_ADMIN_ACTION_MARKUP = createKeyboard(
+                InlineKeyboardButton.builder()
+                        .text("Недоступно")
+                        .callbackData("check_subscription")
+                        .build(),
+                InlineKeyboardButton.builder()
+                        .text("\uD83D\uDDD1")
+                        .callbackData("delete")
+                        .build()
+        );
     }
 
     private Buttons() {
         throw new IllegalStateException("Utility class");
+    }
+
+    public static InlineKeyboardMarkup createPostMarkup(Integer id) {
+        return createKeyboard(
+                InlineKeyboardButton.builder()
+                        .text("✔️")
+                        .callbackData("publish:" + id)
+                        .build(),
+                InlineKeyboardButton.builder()
+                        .text("\uD83D\uDDD1")
+                        .callbackData("delete:" + id)
+                        .build()
+        );
     }
 
     private static InlineKeyboardMarkup createKeyboard(InlineKeyboardButton... buttons) {
@@ -44,5 +57,4 @@ public class Buttons {
         markupInline.setKeyboard(buttons);
         return markupInline;
     }
-
 }

@@ -17,6 +17,7 @@ import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMem
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
+import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.objects.*;
 import org.telegram.telegrambots.meta.api.objects.chatmember.ChatMember;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -24,7 +25,9 @@ import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import ru.mk3.suggestions.cache.CachedUser;
 import ru.mk3.suggestions.cache.UserCacheManager;
+import ru.mk3.suggestions.model.AnonymousMessage;
 import ru.mk3.suggestions.properties.MessageConfig;
+import ru.mk3.suggestions.repository.MessageRepository;
 import ru.mk3.suggestions.util.Buttons;
 
 import java.io.Serializable;
@@ -55,6 +58,9 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
     @Autowired
     private UserCacheManager userCacheManager;
+
+    @Autowired
+    private MessageRepository messageRepository;
 
     @PostConstruct
     public void init() throws TelegramApiException {
@@ -116,9 +122,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         MaybeInaccessibleMessage message = callback.getMessage();
 
         if (message != null) {
-            String callbackId = callback.getId();
             String callbackData = callback.getData();
-
             Long chatId = message.getChatId();
             Integer messageId = message.getMessageId();
 
@@ -138,23 +142,54 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 userCacheManager.updateUser(cachedUser);
 
                 if (!subscribed) {
-                    sendAnswerCallback(callbackId, messageConfig.getStillNotSubscribedMessage(), true);
+                    AnswerCallbackQuery answer = new AnswerCallbackQuery();
+                    answer.setCallbackQueryId(callback.getId());
+                    answer.setText(messageConfig.getStillNotSubscribedMessage());
+                    answer.setShowAlert(true);
+                    send(answer);
+
                     return;
                 }
 
                 sendTextMessage(chatId, messageConfig.getStartMessage());
             } else if (botAdmins.contains(chatId.toString())) {
-                if (callbackData.equals("publish")) {
-                    CopyMessage copyMessage = new CopyMessage();
-                    copyMessage.setFromChatId(chatId);
-                    copyMessage.setMessageId(messageId);
-                    copyMessage.setChatId(targetChannel);
+                String[] args = callbackData.split(":");
+                String action = args[0];
 
-                    if (send(copyMessage) == null) {
+                AnonymousMessage anonymousMessage = null;
+                if (args.length > 1) {
+                    try {
+                        Integer id = Integer.valueOf(args[1]);
+                        anonymousMessage = messageRepository.findById(id).orElse(null);
+                    } catch (NumberFormatException ignored) {
+                    }
+                }
+
+                if (!action.equals("delete")) {
+                    if (anonymousMessage == null) {
+                        EditMessageReplyMarkup editMarkup = new EditMessageReplyMarkup();
+                        editMarkup.setChatId(chatId);
+                        editMarkup.setMessageId(messageId);
+                        editMarkup.setReplyMarkup(Buttons.ANOTHER_ADMIN_ACTION_MARKUP);
+                        send(editMarkup);
+
                         return;
                     }
-                } else if (!callbackData.equals("delete")) {
-                    return;
+
+                    if (action.equals("publish")) {
+                        CopyMessage copyMessage = new CopyMessage();
+                        copyMessage.setFromChatId(chatId);
+                        copyMessage.setMessageId(messageId);
+                        copyMessage.setChatId(targetChannel);
+
+                        if (send(copyMessage) == null) {
+                            return;
+                        }
+                    }
+                }
+
+                if (anonymousMessage != null) {
+                    messageRepository.delete(anonymousMessage);
                 }
             } else {
                 return;
@@ -182,14 +217,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         }
     }
 
-    private void sendAnswerCallback(String callbackQueryId, String text, boolean showAlert) {
-        AnswerCallbackQuery answer = new AnswerCallbackQuery();
-        answer.setCallbackQueryId(callbackQueryId);
-        answer.setText(text);
-        answer.setShowAlert(showAlert);
-        send(answer);
-    }
-
     private void sendTextMessage(Long chatId, String text) {
         sendTextMessage(chatId, text, null);
     }
@@ -204,11 +231,15 @@ public class SuggestionsBot extends TelegramLongPollingBot {
     }
 
     private void forwardMessageToAdmins(Message message) {
-        CopyMessage copyMessage = new CopyMessage();
+        AnonymousMessage anonymousMessage = new AnonymousMessage();
+        anonymousMessage = messageRepository.save(anonymousMessage);
 
+        CopyMessage copyMessage = new CopyMessage();
         copyMessage.setFromChatId(message.getChatId());
         copyMessage.setMessageId(message.getMessageId());
-        copyMessage.setReplyMarkup(Buttons.POST_MARKUP);
+
+        InlineKeyboardMarkup markup = Buttons.createPostMarkup(anonymousMessage.getId());
+        copyMessage.setReplyMarkup(markup);
 
         for (String botAdminId : botAdmins) {
             copyMessage.setChatId(botAdminId);
