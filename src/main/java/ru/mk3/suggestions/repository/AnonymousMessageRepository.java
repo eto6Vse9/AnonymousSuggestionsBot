@@ -5,5 +5,5 @@ import org.springframework.stereotype.Repository;
 import ru.mk3.suggestions.model.AnonymousMessage;
 
 @Repository
-public interface MessageRepository extends JpaRepository<AnonymousMessage, Integer> {
+public interface AnonymousMessageRepository extends JpaRepository<AnonymousMessage, Integer> {
 }

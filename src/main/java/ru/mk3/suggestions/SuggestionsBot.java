@@ -26,8 +26,8 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 import ru.mk3.suggestions.cache.CachedUser;
 import ru.mk3.suggestions.cache.UserCacheManager;
 import ru.mk3.suggestions.model.AnonymousMessage;
-import ru.mk3.suggestions.properties.MessageConfig;
-import ru.mk3.suggestions.repository.MessageRepository;
+import ru.mk3.suggestions.property.MessagesProperty;
+import ru.mk3.suggestions.repository.AnonymousMessageRepository;
 import ru.mk3.suggestions.util.Buttons;
 
 import java.io.Serializable;
@@ -54,13 +54,13 @@ public class SuggestionsBot extends TelegramLongPollingBot {
     private String targetChannel;
 
     @Autowired
-    private MessageConfig messageConfig;
+    private MessagesProperty messagesProperty;
 
     @Autowired
     private UserCacheManager userCacheManager;
 
     @Autowired
-    private MessageRepository messageRepository;
+    private AnonymousMessageRepository anonymousMessageRepository;
 
     @PostConstruct
     public void init() throws TelegramApiException {
@@ -92,23 +92,23 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         }
 
         if (!cachedUser.isSubscribed()) {
-            sendTextMessage(chatId, messageConfig.getMustBeMemberMessage(), Buttons.CHECK_SUBSCRIPTION_MARKUP);
+            sendTextMessage(chatId, messagesProperty.getMustBeMember(), Buttons.CHECK_SUBSCRIPTION_MARKUP);
             return;
         }
 
         String text = message.getText();
         if (text != null && text.equalsIgnoreCase("/start")) {
-            sendTextMessage(chatId, messageConfig.getStartMessage());
+            sendTextMessage(chatId, messagesProperty.getStart());
             return;
         }
 
         if (!userCacheManager.canSendMessage(cachedUser)) {
-            sendTextMessage(chatId, messageConfig.getLimitExceededMessage());
+            sendTextMessage(chatId, messagesProperty.getLimitExceeded());
             return;
         }
 
         forwardMessageToAdmins(message);
-        sendTextMessage(chatId, messageConfig.getConfirmationMessage());
+        sendTextMessage(chatId, messagesProperty.getConfirmation());
 
         cachedUser.incrementMessageCount();
         cachedUser.setLastMessageTime(LocalDateTime.now());
@@ -130,16 +130,16 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
                 if (!cachedUser.isSubscribed()) {
                     if (!userCacheManager.canCheckSubscription(cachedUser)) {
-                        sendAnswerCallback(callbackId, messageConfig.getSubscriptionCheckLimitExceededMessage());
+                        sendAnswerCallback(callbackId, messagesProperty.getSubscriptionCheckLimitExceeded());
                         return;
                     }
 
                     if (!checkIsMemberOfChannel(cachedUser)) {
-                        sendAnswerCallback(callbackId, messageConfig.getStillNotSubscribedMessage());
+                        sendAnswerCallback(callbackId, messagesProperty.getStillNotSubscribed());
                         return;
                     }
 
-                    sendTextMessage(chatId, messageConfig.getStartMessage());
+                    sendTextMessage(chatId, messagesProperty.getStart());
                 }
             } else if (botAdmins.contains(chatId.toString())) {
                 String[] args = callbackData.split(":");
@@ -149,7 +149,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 if (args.length > 1) {
                     try {
                         Integer id = Integer.valueOf(args[1]);
-                        anonymousMessage = messageRepository.findById(id).orElse(null);
+                        anonymousMessage = anonymousMessageRepository.findById(id).orElse(null);
                     } catch (NumberFormatException ignored) {
                     }
                 }
@@ -178,7 +178,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                 }
 
                 if (anonymousMessage != null) {
-                    messageRepository.delete(anonymousMessage);
+                    anonymousMessageRepository.delete(anonymousMessage);
                 }
             } else {
                 return;
@@ -236,7 +236,7 @@ public class SuggestionsBot extends TelegramLongPollingBot {
 
     private void forwardMessageToAdmins(Message message) {
         AnonymousMessage anonymousMessage = new AnonymousMessage();
-        anonymousMessage = messageRepository.save(anonymousMessage);
+        anonymousMessage = anonymousMessageRepository.save(anonymousMessage);
 
         CopyMessage copyMessage = new CopyMessage();
         copyMessage.setFromChatId(message.getChatId());

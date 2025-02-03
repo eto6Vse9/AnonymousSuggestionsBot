@@ -1,4 +1,4 @@
-package ru.mk3.suggestions.properties;
+package ru.mk3.suggestions.property;
 
 import lombok.Data;
 import org.springframework.beans.factory.annotation.Value;
@@ -6,26 +6,26 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
 @Component
-@PropertySource(value = "classpath:messages.properties", encoding = "UTF-8")
+@PropertySource(value = "classpath:messages.property", encoding = "UTF-8")
 @Data
-public class MessageConfig {
+public class MessagesProperty {
 
     @Value("${start}")
-    private String startMessage;
+    private String start;
 
     @Value("${confirmation}")
-    private String confirmationMessage;
+    private String confirmation;
 
     @Value("${must-be-member}")
-    private String mustBeMemberMessage;
+    private String mustBeMember;
 
     @Value("${limit-exceeded}")
-    private String limitExceededMessage;
+    private String limitExceeded;
 
     @Value("${subscription-check-limit-exceeded}")
-    private String subscriptionCheckLimitExceededMessage;
+    private String subscriptionCheckLimitExceeded;
 
     @Value("${still-not-subscribed}")
-    private String stillNotSubscribedMessage;
+    private String stillNotSubscribed;
 
 }
