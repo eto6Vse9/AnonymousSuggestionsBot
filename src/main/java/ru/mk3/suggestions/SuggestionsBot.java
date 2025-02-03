@@ -129,29 +129,31 @@ public class SuggestionsBot extends TelegramLongPollingBot {
             if (callbackData.equals("check_subscription")) {
                 CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
 
-                if (!userCacheManager.canCheckSubscription(cachedUser)) {
-                    sendTextMessage(chatId, messageConfig.getSubscriptionCheckLimitExceededMessage());
-                    return;
+                if (!cachedUser.isSubscribed()) {
+                    if (!userCacheManager.canCheckSubscription(cachedUser)) {
+                        sendTextMessage(chatId, messageConfig.getSubscriptionCheckLimitExceededMessage());
+                        return;
+                    }
+
+                    boolean subscribed = isUserMemberOfChannel(chatId);
+
+                    cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
+                    cachedUser.setSubscribed(subscribed);
+                    cachedUser.incrementSubscriptionCheckCount();
+                    userCacheManager.updateUser(cachedUser);
+
+                    if (!subscribed) {
+                        AnswerCallbackQuery answer = new AnswerCallbackQuery();
+                        answer.setCallbackQueryId(callback.getId());
+                        answer.setText(messageConfig.getStillNotSubscribedMessage());
+                        answer.setShowAlert(true);
+                        send(answer);
+
+                        return;
+                    }
+
+                    sendTextMessage(chatId, messageConfig.getStartMessage());
                 }
-
-                boolean subscribed = isUserMemberOfChannel(chatId);
-
-                cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
-                cachedUser.setSubscribed(subscribed);
-                cachedUser.incrementSubscriptionCheckCount();
-                userCacheManager.updateUser(cachedUser);
-
-                if (!subscribed) {
-                    AnswerCallbackQuery answer = new AnswerCallbackQuery();
-                    answer.setCallbackQueryId(callback.getId());
-                    answer.setText(messageConfig.getStillNotSubscribedMessage());
-                    answer.setShowAlert(true);
-                    send(answer);
-
-                    return;
-                }
-
-                sendTextMessage(chatId, messageConfig.getStartMessage());
             } else if (botAdmins.contains(chatId.toString())) {
                 String[] args = callbackData.split(":");
                 String action = args[0];
