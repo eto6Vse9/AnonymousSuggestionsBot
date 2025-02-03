@@ -21,6 +21,7 @@ public class Buttons {
 
         ANOTHER_ADMIN_ACTION_MARKUP = createKeyboard(
                 InlineKeyboardButton.builder()
+                        .callbackData("delete")
                         .text("Недоступно")
                         .build(),
                 InlineKeyboardButton.builder()
