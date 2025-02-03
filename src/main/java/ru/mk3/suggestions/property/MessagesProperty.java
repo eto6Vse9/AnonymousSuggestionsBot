@@ -6,7 +6,7 @@ import org.springframework.context.annotation.PropertySource;
 import org.springframework.stereotype.Component;
 
 @Component
-@PropertySource(value = "classpath:messages.property", encoding = "UTF-8")
+@PropertySource(value = "classpath:messages.properties", encoding = "UTF-8")
 @Data
 public class MessagesProperty {
 
