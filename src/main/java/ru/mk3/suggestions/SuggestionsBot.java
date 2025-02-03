@@ -9,10 +9,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.TelegramBotsApi;
-import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
-import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
-import org.telegram.telegrambots.meta.api.methods.CopyMessage;
-import org.telegram.telegrambots.meta.api.methods.ParseMode;
+import org.telegram.telegrambots.meta.api.methods.*;
 import org.telegram.telegrambots.meta.api.methods.groupadministration.GetChatMember;
 import org.telegram.telegrambots.meta.api.methods.send.SendMediaGroup;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -166,12 +163,12 @@ public class SuggestionsBot extends TelegramLongPollingBot {
                     }
 
                     if (action.equals("publish")) {
-                        CopyMessage copyMessage = new CopyMessage();
-                        copyMessage.setFromChatId(chatId);
-                        copyMessage.setMessageId(messageId);
-                        copyMessage.setChatId(targetChannel);
+                        ForwardMessage forwardMessage = new ForwardMessage();
+                        forwardMessage.setFromChatId(chatId);
+                        forwardMessage.setMessageId(messageId);
+                        forwardMessage.setChatId(targetChannel);
 
-                        if (send(copyMessage) == null) {
+                        if (send(forwardMessage) == null) {
                             return;
                         }
                     }
