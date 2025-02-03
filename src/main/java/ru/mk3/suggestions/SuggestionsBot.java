@@ -87,13 +87,6 @@ public class SuggestionsBot extends TelegramLongPollingBot {
         Long chatId = message.getChatId();
         CachedUser cachedUser = userCacheManager.getCachedUserByTelegramId(chatId);
 
-        if (userCacheManager.shouldCheckSubscription(cachedUser)) {
-            cachedUser.setSubscribed(isUserMemberOfChannel(chatId));
-            cachedUser.setLastSubscriptionCheck(LocalDateTime.now());
-
-            userCacheManager.updateUser(cachedUser);
-        }
-
         if (!cachedUser.isSubscribed()) {
             sendTextMessage(chatId, messageConfig.getMustBeMemberMessage(), Buttons.CHECK_SUBSCRIPTION_MARKUP);
             return;

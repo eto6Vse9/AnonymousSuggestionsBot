@@ -10,7 +10,6 @@ import java.time.temporal.ChronoUnit;
 @Service
 public class UserCacheManager {
 
-    private static final long SUBSCRIPTION_CHECK_TIMEOUT_MINUTES = 60;
     private static final int MAX_MESSAGES_PER_HOUR = 5;
     private static final int MAX_SUBSCRIPTION_CHECKS_PER_DAY = 3;
 
@@ -39,12 +38,6 @@ public class UserCacheManager {
         }
 
         return user.getMessageCount() < MAX_MESSAGES_PER_HOUR;
-    }
-
-    public boolean shouldCheckSubscription(CachedUser user) {
-        LocalDateTime lastCheck = user.getLastSubscriptionCheck();
-        return lastCheck == null ||
-                ChronoUnit.MINUTES.between(lastCheck, LocalDateTime.now()) >= SUBSCRIPTION_CHECK_TIMEOUT_MINUTES;
     }
 
     public boolean canCheckSubscription(CachedUser user) {
